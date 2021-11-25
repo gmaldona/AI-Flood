@@ -1,6 +1,6 @@
 import scala.:+
 import java.util.ArrayList
-import Constants.{BoardState, Col, Row}
+import Constants.{BoardState, Col, Row, colors}
 
 import java.awt.Color
 import java.util
@@ -45,6 +45,30 @@ class Node(parentBoardState: BoardState, selectedColor: Color, height: Int) exte
         board(row)(col).setVisited(false)
       }
     }
+  }
+
+  def surroundingColors(chainingSquares: List[Square]): List[Color] = {
+    var colors: List[Color] = List()
+    for (square <- chainingSquares) {
+
+      val northColor: Option[Color] = if (square.Row > 0) Some(board(square.Row - 1)(square.Col).Color) else None
+      val westColor : Option[Color] = if (square.Col > 0) Some(board(square.Row)(square.Col - 1).Color) else None
+      val southColor: Option[Color] = if (square.Row < board.length - 1)    Some(board(square.Row + 1)(square.Col).Color) else None
+      val eastColor : Option[Color] = if (square.Col < board(0).length - 1) Some(board(square.Row)(square.Col + 1).Color) else None
+
+      val currentColor: Color = board(square.Row)(square.Col).Color
+
+      val optionColors = List(northColor, westColor, southColor, eastColor, currentColor)
+
+      for (c <- optionColors) {
+        c match {
+          case Some(color) => colors = colors :+ color.asInstanceOf[Color]
+          case _: Color    => colors = colors :+ c.asInstanceOf[Color]
+          case None        =>
+        }
+      }
+    }
+    colors.distinct.filter( color => color != selectedColor )
   }
 
   /** Finds all chaining Squares adjacent to each other */
@@ -95,17 +119,47 @@ class Node(parentBoardState: BoardState, selectedColor: Color, height: Int) exte
       s.setColor(selectedColor)
       square.setColor(selectedColor)
     }
+
     val boardColors = getDistinctColors
-    resetVisit
+    val colorsSurrounding: List[Color] = surroundingColors(chainingSquares)
+
+    resetVisit()
     chainingSquares = findChainingSquares(0, 0)
     score = chainingSquares.length.asInstanceOf[Double] / Constants.TOTAL_SQUARES
 
-    if (height == Constants.MOVES && score != 1.0) {
-      tryUnfork()
+    this match {
+      case _: InternalNode => {
+        val parentNode: Node = this.asInstanceOf[InternalNode].parentNodeInternal
+        println("this score: " + this.score + ", parent score: " + parentNode.score )
+        if (score < parentNode.score) return
+      }
+      case _: HeadNode => {
+        val headNode: HeadNode = this.asInstanceOf[HeadNode]
+        for (color <- colorsSurrounding) {
+          val childNode: InternalNode = InternalNode(Node.this, height + 1, color)
+          headNode.childrenNodes = headNode.childrenNodes :+ childNode
+
+          val thread = new Thread {
+            override def run(): Unit = {
+              childNode.invoke()
+            }
+          }
+
+          headNode.threads = headNode.threads :+ thread
+        }
+        for (thread <- headNode.threads) {
+          thread.run()
+          return
+        }
+      }
     }
 
+    if (height == Constants.MOVES && score != 1.0) { return }
+
+    //else if (height == Constants.MOVES / 2 && score < 0.30) { return }
+
     else if (height < Constants.MOVES && score != 1.0) {
-      for (color <- boardColors) {
+      for (color <- colorsSurrounding) {
         if (selectedColor != color) {
           val childNode: InternalNode = new InternalNode(this, height + 1, color)
           childrenNodes = childrenNodes :+ childNode
@@ -126,6 +180,8 @@ class Node(parentBoardState: BoardState, selectedColor: Color, height: Int) exte
  *               When inheriting states from parent or to child, we make copies !
  */
 case class HeadNode(override val boardState: BoardState) extends Node(boardState, Board.getFirstSquare(boardState).Color, 0) {
+
+  var threads: List[Thread] = List()
 
   override def compute(): Unit = super.compute()
 

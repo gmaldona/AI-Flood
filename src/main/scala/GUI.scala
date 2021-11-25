@@ -1,12 +1,14 @@
 import java.awt.{BorderLayout, Color, Dimension, Frame, Graphics, Graphics2D, GraphicsDevice, GraphicsEnvironment}
 import javax.swing.{JFrame, JPanel}
-import Constants.BoardState
+import Constants.{BoardState, colors}
 
 object GUI extends JFrame {
-  val padding = 150
+  val padding = 160
   var spacing: Double = 0.0
   var winningBranch: List[Node] = List()
   var drawingNode: Option[Node] = None
+  var startingBoard: BoardState = Vector()
+  var isDone: Boolean = false
 
   def setWinningBranch(branch: List[Node]): Unit = winningBranch = branch
 
@@ -18,7 +20,9 @@ object GUI extends JFrame {
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
     setTitle("FLOOD !")
     setVisible(true)
+    drawingNode = Some(HeadNode(startingBoard))
   }
+
 
   override def paint(g: Graphics): Unit = {
 
@@ -32,11 +36,12 @@ object GUI extends JFrame {
       for (row <- 0 until Constants.SIZE) {
         for (col <- 0 until Constants.SIZE) {
           g2d.setColor(board(row)(col).Color)
-          g2d.fillRect( Math.ceil((col * spacing) + (padding / 2)).toInt, Math.ceil((row * spacing) + padding / 2).toInt, spacing.toInt, spacing .toInt)
+          g2d.fillRect( Math.floor((col * spacing) + (padding / 2)).toInt, Math.floor((row * spacing) + padding / 2).toInt, spacing.toInt, spacing .toInt)
         }
       }
     }
-
+    g2d.setColor(Color.BLACK)
+    g2d.drawString("© Gregory Maldonado CSC 375 Parallel Computing", Constants.WINDOW_SIZE - 400, Constants.WINDOW_SIZE - 25)
     repaint()
   }
 
@@ -50,5 +55,4 @@ object GUI extends JFrame {
       Thread.sleep(1000)
     }
   }
-
 }

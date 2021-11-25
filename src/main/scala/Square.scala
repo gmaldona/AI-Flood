@@ -22,10 +22,11 @@ class Square(row: Int, col: Int, defaultColor: Color) {
 
   override def toString: String = {
     Color match {
-      case java.awt.Color.RED   => "red"
-      case java.awt.Color.BLUE  => "blue"
-      case java.awt.Color.GREEN => "green"
-      case _                    => "NIL"
+      case java.awt.Color.RED     => "red"
+      case java.awt.Color.BLUE    => "blue"
+      case java.awt.Color.GREEN   => "green"
+      case java.awt.Color.MAGENTA => "magenta"
+      case _ => "NIL"
     }
   }
 
