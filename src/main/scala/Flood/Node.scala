@@ -1,10 +1,8 @@
-import scala.:+
-import java.util.ArrayList
-import Constants.{BoardState, Col, Row, colors}
+package Flood
+
+import Flood.Constants.{BoardState, Row, pool}
 
 import java.awt.Color
-import java.util
-import java.util.concurrent.ForkJoinTask.invokeAll
 import java.util.concurrent.{ForkJoinTask, RecursiveAction}
 
 class Node(parentBoardState: BoardState, selectedColor: Color, height: Int) extends RecursiveAction {
@@ -99,7 +97,6 @@ class Node(parentBoardState: BoardState, selectedColor: Color, height: Int) exte
 
     if (neighborsList.isEmpty) neighborsList else {
       var tempList: List[Square] = List()
-      println(neighborsList)
       for (neighbor <- neighborsList) {
         if (neighbor != currentSquare) {
           val chainingSquares: List[Square] = findChainingSquares(neighbor.Row, neighbor.Col)
@@ -112,7 +109,6 @@ class Node(parentBoardState: BoardState, selectedColor: Color, height: Int) exte
 
   /** Recursive Action */
   override def compute(): Unit = {
-    println(height)
     chainingSquares = findChainingSquares(0, 0)
     for (square <- chainingSquares) {
       val s: Square = board(square.Row)(square.Col)
@@ -127,45 +123,44 @@ class Node(parentBoardState: BoardState, selectedColor: Color, height: Int) exte
     chainingSquares = findChainingSquares(0, 0)
     score = chainingSquares.length.asInstanceOf[Double] / Constants.TOTAL_SQUARES
 
-    this match {
-      case _: InternalNode => {
-        val parentNode: Node = this.asInstanceOf[InternalNode].parentNodeInternal
-        println("this score: " + this.score + ", parent score: " + parentNode.score )
-        if (score < parentNode.score) return
-      }
-      case _: HeadNode => {
-        val headNode: HeadNode = this.asInstanceOf[HeadNode]
-        for (color <- colorsSurrounding) {
-          val childNode: InternalNode = InternalNode(Node.this, height + 1, color)
-          headNode.childrenNodes = headNode.childrenNodes :+ childNode
-
-          val thread = new Thread {
-            override def run(): Unit = {
-              childNode.invoke()
-            }
-          }
-
-          headNode.threads = headNode.threads :+ thread
-        }
-        for (thread <- headNode.threads) {
-          thread.run()
-          return
-        }
-      }
-    }
+//    this match {
+//      case _: InternalNode => {
+//        val parentNode: Node = this.asInstanceOf[InternalNode].parentNodeInternal
+//        if (score < parentNode.score) return
+//      }
+//      case _: HeadNode => {
+//        val headNode: HeadNode = this.asInstanceOf[HeadNode]
+//        for (color <- colorsSurrounding) {
+//          val childNode: InternalNode = InternalNode(Node.this, height + 1, color)
+//          headNode.childrenNodes = headNode.childrenNodes :+ childNode
+//
+//          val thread = new Thread {
+//            override def run(): Unit = {
+//              childNode.invoke()
+//            }
+//          }
+//
+//          headNode.threads = headNode.threads :+ thread
+//        }
+//        for (thread <- headNode.threads) {
+//          thread.run()
+//          return
+//        }
+//      }
+//    }
 
     if (height == Constants.MOVES && score != 1.0) { return }
 
-    //else if (height == Constants.MOVES / 2 && score < 0.30) { return }
-
-    else if (height < Constants.MOVES && score != 1.0) {
+    else if (height == Constants.MOVES / 2 && score < 0.30) { return }
+    if (height < Constants.MOVES && score != 1.0) {
       for (color <- colorsSurrounding) {
         if (selectedColor != color) {
           val childNode: InternalNode = new InternalNode(this, height + 1, color)
           childrenNodes = childrenNodes :+ childNode
-          ForkJoinTask.invokeAll(childNode)
+          pool.submit(childNode)
         }
       }
+      for (child <- childrenNodes) child.join()
     }
 
 

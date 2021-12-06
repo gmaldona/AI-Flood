@@ -1,3 +1,5 @@
+package Flood
+
 import java.awt.Color;
 
 class Square(row: Int, col: Int, defaultColor: Color) {
