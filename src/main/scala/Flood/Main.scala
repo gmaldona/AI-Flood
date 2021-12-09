@@ -18,6 +18,16 @@ object Main {
     run()
   }
 
+  def serverRun(boardState: BoardState): List[Node] = { 
+    Board.displayBoard(boardState)
+    StateTree.setup(boardState)
+    val headNode: Node = StateTree.head
+    StateTree.findFirstWinningNode(headNode)
+    val winningNode: Option[Node] = StateTree.winningNode
+    val winningBranch: List[Node] = if (winningNode.nonEmpty) StateTree.findWinningBranch(winningNode.get) else List()
+    if (winningBranch.nonEmpty) winningBranch else List()
+  }
+
   def run(): Unit = {
     val board: BoardState = Board.createBoard
     GUI.startingBoard = board
@@ -27,14 +37,7 @@ object Main {
     })
 
 
-    Board.displayBoard(board)
-    StateTree.setup(board)
-    val headNode: Node = StateTree.head
-
-    StateTree.findFirstWinningNode(headNode)
-    //StateTree.findShortestMovesNode(headNode)
-    val winningNode: Option[Node] = StateTree.winningNode
-    val winningBranch: List[Node] = if (winningNode.nonEmpty) StateTree.findWinningBranch(winningNode.get) else List()
+    val winningBranch: List[Node] = serverRun(board) 
 
     if (winningBranch.nonEmpty) {
       println("Solving ... ")

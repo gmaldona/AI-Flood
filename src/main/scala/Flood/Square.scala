@@ -1,8 +1,9 @@
 package Flood
 
-import java.awt.Color;
+import java.awt.Color
 
-class Square(row: Int, col: Int, defaultColor: Color) {
+@SerialVersionUID(123L)
+class Square(row: Int, col: Int, defaultColor: Color) extends Serializable {
 
   var visited: Boolean = false
   var red: Int = defaultColor.getRed

@@ -5,7 +5,9 @@ import Flood.Constants.{BoardState, Row, pool}
 import java.awt.Color
 import java.util.concurrent.{ForkJoinTask, RecursiveAction}
 
-class Node(parentBoardState: BoardState, selectedColor: Color, height: Int) extends RecursiveAction {
+@SerialVersionUID(114L)
+class Node(parentBoardState: BoardState, selectedColor: Color, height: Int)
+  extends RecursiveAction with Serializable  {
 
   var childrenNodes: List[Node] = List()
   var score: Double = 0.0
