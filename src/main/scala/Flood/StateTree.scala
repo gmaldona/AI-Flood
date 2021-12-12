@@ -13,7 +13,6 @@ object StateTree {
   /** Sets up the tree and invokes all RecursiveActions */
   def setup(boardState: BoardState): Unit = {
     head = new HeadNode(boardState)
-    head.reinitialize()
     head.invoke()
     head.join()
   }
@@ -36,7 +35,7 @@ object StateTree {
 
   /** Finds the first node with a score of 1.0 and stores the node in the winning node reference */
   def findFirstWinningNode(node: Node): Unit = {
-
+    println(node.score )
     if (node.score == 1.0) {
       winningNode match {
         case None => winningNode = Some(node)
@@ -45,7 +44,6 @@ object StateTree {
       }
     }
 
-    if (node.childrenNodes.isEmpty) return
     winningNode match {
       case None => for (childNode <- node.childrenNodes) {
         findFirstWinningNode(childNode)

@@ -29,6 +29,10 @@ class Node(parentBoardState: BoardState, selectedColor: Color, height: Int)
     board
   }
 
+  override def toString: String = {
+    board.toString
+  }
+
   /** Gets distinct colors on the board state */
   def getDistinctColors: List[Color] = {
     var boardColors: List[Color] = List()

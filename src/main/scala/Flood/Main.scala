@@ -20,12 +20,27 @@ object Main {
 
   def serverRun(boardState: BoardState): List[Node] = { 
     Board.displayBoard(boardState)
-    StateTree.setup(boardState)
-    val headNode: Node = StateTree.head
-    StateTree.findFirstWinningNode(headNode)
-    val winningNode: Option[Node] = StateTree.winningNode
-    val winningBranch: List[Node] = if (winningNode.nonEmpty) StateTree.findWinningBranch(winningNode.get) else List()
-    if (winningBranch.nonEmpty) winningBranch else List()
+    var winningBranch: List[Node] = List()
+    //while (winningBranch.length == 0) {
+      StateTree.setup(boardState)
+      val headNode: Node = StateTree.head
+      StateTree.findFirstWinningNode(headNode)
+      val winningNode: Option[Node] = StateTree.winningNode
+      winningBranch = if (winningNode.nonEmpty) StateTree.findWinningBranch(winningNode.get) else List()
+      println(winningBranch )
+    //}
+    winningBranch
+  }
+
+  def serverGUI(branch: List[Node]): Unit = {
+    GUI.startingBoard = branch.head.board
+    Thread.sleep(1000)
+    SwingUtilities.invokeLater(() => {
+      GUI.run()
+    })
+
+    GUI.setWinningBranch(branch)
+    GUI.repaint()
   }
 
   def run(): Unit = {

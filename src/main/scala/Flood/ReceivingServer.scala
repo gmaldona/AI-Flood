@@ -66,11 +66,14 @@ object ReceivingServer {
               for (node <- winningBranch) {
                 for (squareRow <- node.board) {
                   for (square <- squareRow) {
-                    outStream.writeObject("Hello")
+                    println("Sending square ->\t" + square.hashCode)
+                    outStream.writeObject(square)
                     Thread.sleep(300)
                     outStream.flush()
                   }
                 }
+                Thread.sleep(2000)
+                println()
               }
               clientSocket.close
               outStream.close
@@ -92,23 +95,13 @@ object ReceivingServer {
     
     listenForBoard
     Board.displayBoard(initialBoardState)
-    //winningBranch = Main.serverRun(initialBoardState)
+    winningBranch = Main.serverRun(initialBoardState)
 
-    //println("Winning Branch Size " + winningBranch.length)
-    Thread.sleep(5000)
-    val socket: Socket = new Socket(ServerConstants.STARTING_IP, 4000)
-    if (socket.isConnected) {
-      val remoteIPConnection: String = socket.getRemoteSocketAddress.asInstanceOf[InetSocketAddress].getAddress.toString
-      println("Established Connection to " + remoteIPConnection)
-      val outStream: ObjectOutputStream = new ObjectOutputStream(socket.getOutputStream)
-      val inStream : ObjectInputStream  = new ObjectInputStream(socket.getInputStream)
-      outStream.writeObject("Hello") 
-    } else {
-      println("DEAD") 
-    } 
+    println("Found a winning branch with size: " + winningBranch.length)
+    Thread.sleep(1000)
 
 
-    // sendToWinningServer(winningBranch)
+    sendToWinningServer(winningBranch)
 
 
   }

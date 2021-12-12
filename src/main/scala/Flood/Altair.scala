@@ -4,6 +4,10 @@ import Flood.Board._
 import Flood.Square
 import java.io._
 import java.net._
+import scala.concurrent._
+import ExecutionContext.Implicits.global
+import scala.util.{Success, Failure} 
+import java.util.concurrent.ConcurrentHashMap
 
 import java.awt.Color
 
@@ -15,6 +19,8 @@ object Altair {
 
   var altairGameState: BoardState = Vector()
   var winningBranch  : List[Node] = List()
+
+  var concurrentMap: ConcurrentHashMap[String, List[Node]] = new ConcurrentHashMap()
 
   def initServerStates: List[BoardState] = {
     var serverStates: List[BoardState] = List() 
@@ -37,28 +43,35 @@ object Altair {
   def reconstructBranch(socket: Socket, inStream: ObjectInputStream): List[Node] = {
     var branch: List[Node] = List()
     var badRequest: Boolean = false
-    while (socket.isConnected && !socket.isClosed && badRequest == false) {
+    while (! badRequest) {
       var boardState: BoardState = Vector()
-      while (board.length != Constants.SIZE && badRequest == false) {
-        var squareRow: Vector[Square] = Vector()
-        while(squareRow.length != Constants.SIZE && badRequest == false) {
+      for (i <- 0 until Constants.SIZE) {
+        var boardRow: Vector[Square] = Vector()
+        for (j <- 0 until Constants.SIZE) {
           try {
-              println("Looking for a string") 
-              val testString: String = inStream.readObject().asInstanceOf[String]
-              println(testString)
-              //squareRow = squareRow :+ square
+            val square: Square = inStream.readObject().asInstanceOf[Square]
+            boardRow = boardRow :+ square
           } catch {
-            case e  : IOException  => { println("IO Error"); badRequest = true } 
-            case eof: EOFException => { println("EOF"); badRequest = true }
-            case   _: Throwable    => badRequest = true
+            case e  : IOException    => { println("IO Error"); badRequest = true }
+            case eof: EOFException   => { println("EOF"); badRequest = true } 
+            case t  : Throwable      => { t.printStackTrace(); badRequest = true }
           }
         }
-        //boardState = boardState :+ squareRow
+        boardState = boardState :+ boardRow
       }
-      //println("Board Coming from PI :)")
-      //Board.displayBoard(boardState)
+      if (branch.isEmpty && badRequest == false) {
+        val node: Node = HeadNode(boardState)
+        branch = branch :+ node
+        println(node)
+      } else if (branch.nonEmpty && badRequest == false) {
+        val node: Node = InternalNode(branch.last, branch.last.Height + 1, boardState(0)(0).Color)
+        node.board = boardState
+        branch = branch :+ node
+        println(node)
+      }
     }
-    branch
+    println("RECEIVED BRANCH SIZE " + branch.length)
+    branch 
   }
 
   def sendInitGameState: Boolean = {
@@ -83,39 +96,63 @@ object Altair {
         false
       }
     }
-    altairGameState = initialServerStates(0)
     true
   }
 
-  def listenForRequests: Unit = {
-    println("Listening for Requests ...")
-    val requestCount = ServerConstants.SERVER_IPs.size
-    var openThreads: List[Thread]  = List()
-    for (request <- 0 until requestCount) {
-      val thread = new Thread {
-        override def run(): Unit = {
-          for (serverHost <- ServerConstants.SERVER_PORTS.keys) {
-            ServerConstants.SERVER_PORTS.get(serverHost) match {
-              case Some(port) => {
-                try {
-                  //TODO: SERVER IS NOT LISTENIN TO PI
-                  val serverSocket: ServerSocket = new ServerSocket(port.toInt)
-                  val socket      : Socket = serverSocket.accept
-                  println("Openning Port " + port)
-                  val outStream   : ObjectOutputStream = new ObjectOutputStream(socket.getOutputStream)
-                  val inStream    : ObjectInputStream  = new ObjectInputStream(socket.getInputStream)
-                  val reconstructedBranch: List[Node] = reconstructBranch(socket, inStream)
-                } catch {
-                  case e: IOException =>
-                }
-              }
-            }
-          }
+  class RespondingServer(_serverHost: String, _port: String) extends Runnable {
+    val serverHost = _serverHost 
+    val port = _port.toInt
+    override def run(): Unit = {
+      try {      
+        val serverSocket: ServerSocket = new ServerSocket(port)
+        val socket      : Socket = serverSocket.accept
+        println("Opening Port: " + port)
+        val outStream : ObjectOutputStream = new ObjectOutputStream(socket.getOutputStream)
+        val inStream  : ObjectInputStream  = new ObjectInputStream(socket.getInputStream)
+        val _branch: List[Node] = reconstructBranch(socket, inStream)
+
+        outStream.close
+        inStream.close
+        socket.close
+        serverSocket.close
+
+        concurrentMap.put(_serverHost, _branch)
+      } catch {
+          case eof: EOFException => println("eof")
+          case e: IOException => println("broke")
         }
-      }
-      thread.start
-      openThreads = openThreads :+ thread
     }
+  }
+
+  def listenForRequests = {
+    println("Listening for Requests ...")
+    var serverHosts = ServerConstants.SERVER_PORTS
+    for (serverhost <- serverHosts.keys) {
+      serverHosts.get(serverhost) match {
+        case Some(port) => {
+          val respondingServer: RespondingServer = new RespondingServer(serverhost, port)
+          val thread: Thread = new Thread(respondingServer)
+          thread.start
+          //threads = threads :+ thread
+        }
+        case None =>
+      }
+    }
+    //for (thread <- )
+    while (concurrentMap.size() < ServerConstants.SERVER_IPs.size) {Thread.sleep(300)} 
+  }
+
+  def composeTree(branches: List[List[Node]]): List[List[Node]] = {
+    if (branches.isEmpty) return List()
+    val headNode: HeadNode = HeadNode(initialGameState)
+    var changedBranches: List[List[Node]] = List()
+    for (branch <- branches) {
+      var changedBranch: List[Node] = branch.tail
+      var node: InternalNode = InternalNode(headNode, headNode.Height + 1, branch.head.board(0)(0).Color)
+      changedBranch = List(node) ::: changedBranch
+      changedBranches = changedBranches :+ changedBranch
+    }
+    changedBranches
   }
 
   def main(args: Array[String]): Unit = {
@@ -125,16 +162,38 @@ object Altair {
       return
     } 
 
-    if (altairGameState.isEmpty) {
-      println("Initial Board is empty. Try Re-Running Program")
-      return
-    }
+    // if (altairGameState.isEmpty) {
+    //   println("Initial Board is empty. Try Re-Running Program")
+    //   return
+    // }
 
     //winningBranch = Main.serverRun(altairGameState)
-    //println("Winning Branch Size " + winningBranch.length)
+    //println("Found a winning branch with size " + winningBranch.length)
+
+    var branches: List[List[Node]] = List()
 
     listenForRequests
+    val keyIter = concurrentMap.keySet.iterator
+    while (keyIter.hasNext) {
+      val ip = keyIter.next
+      branches = branches :+ concurrentMap.get(ip)
+    }
+
+    val winningBranches: List[List[Node]] = composeTree(branches)
+    var leastMovesBranch: List[Node] = winningBranches.head
     
+    for (branch <- winningBranches) {
+      if (branch.length < leastMovesBranch.length) {
+        leastMovesBranch = branch
+      }
+    }
+
+    for (node <- leastMovesBranch) {
+      println(node)
+    }
+
+    Main.serverGUI(leastMovesBranch)
+
   }
 
 }

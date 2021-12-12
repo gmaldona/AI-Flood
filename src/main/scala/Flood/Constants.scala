@@ -8,12 +8,12 @@ object Constants {
   type Row = Vector[Square]
   type Col = Square
 
-  val SIZE = 2
+  val SIZE = 3
 
-  val MOVES = 23
+  val MOVES = 10
   val pool: ForkJoinPool = new ForkJoinPool()
 
   val TOTAL_SQUARES: Double = SIZE * SIZE
   val WINDOW_SIZE = 800
-  val colors: List[Color] = List(Color.BLUE, Color.GREEN)
+  val colors: List[Color] = List(Color.BLUE, Color.GREEN, Color.RED)
 }

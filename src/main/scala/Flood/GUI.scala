@@ -57,7 +57,7 @@ object GUI extends JFrame {
     }
     super.repaint()
     try {
-      Thread.sleep(1000)
+      Thread.sleep(2000)
     }
   }
 }
